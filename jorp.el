@@ -36,8 +36,11 @@
 ;; @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ;;
 ;; [`Note']
-;; !! Requires the package `s' as a prequisite
+;; !! Dependency packages: `s' and `bind'
 ;;
+
+(require 's)
+(require 'bind)
 
 ;; UTILITY
 (defun get-lines-as-list (file)
@@ -78,8 +81,6 @@
 (defun eval-string (string)
   "eval elisp code stored in a string."
   (eval (car (read-from-string string))))
-
-(require 's)
 
 (defun format-numbered (string &rest args-list)
   "accepts $x where x is index of argument"

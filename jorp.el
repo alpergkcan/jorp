@@ -152,8 +152,9 @@
 ;; Constants
 (setq jorp-projects-file     "~/.emacs.d/projects.jorp")
 (setq jorp-config-filename   "config.jorp")
-(setq jorp-config-command-seperator "`")
+(setq jorp-config-command-seperator "=")
 (setq jorp-config-commands-string   "commands")
+(setq jorp-config-binds-string      "binds")
 (setq jorp-config-vars-string       "vars")
 (setq jorp-config-files-string      "files")
 (setq jorp-config-comment-char      "#")
@@ -181,6 +182,7 @@ rdbg-executable ` remedybg.exe\n\
 (setq jorp-name     "")
 (setq jorp-lines    nil)
 (setq jorp-commands nil)
+(setq jorp-binds nil)
 (setq jorp-vars     nil)
 (setq jorp-files    nil)
 
@@ -206,13 +208,30 @@ rdbg-executable ` remedybg.exe\n\
 		 (setq-local key   (s-trim (nth 0 (split-string (nth old-command-index jorp-commands) jorp-config-command-seperator t))))
 	     (setq-local old-command-index (+ old-command-index 1))
 		 (setq-local jorp-name-compact (s-replace " " "" jorp-name))
-		 (eval-string (format "(unbind-key (kbd \"%s\"))"
-							  key))
-		 (eval-string (format "(fmakunbound 'j-o-r-p-%s-%s-command)"
+		 ;; (eval-string (format "(unbind-key (kbd \"%s\"))"
+		 ;; 					  key))
+		 (eval-string (format "(fmakunbound '%s-%s)"
 							  jorp-name-compact key))
 		 (eval-string (format "(makunbound  'j-o-r-p-%s-%s-command-string)"
 							  jorp-name-compact key)))
   (setq jorp-commands nil))
+
+(defun clear-old-binds ()
+  "unbind shortcuts for previously set commands from `jorp-commands' configured by 'config.jorp'"
+  (setq-local old-bind-index 0)
+  (setq-local bind-count (length jorp-binds))
+  (while (< old-bind-index bind-count)
+		 (setq-local key   (s-trim (nth 0 (split-string (nth old-bind-index jorp-binds) jorp-config-command-seperator t))))
+	     (setq-local old-bind-index (+ old-bind-index 1))
+		 (setq-local jorp-name-compact (s-replace " " "" jorp-name))
+		 (eval-string (format "(unbind-key (kbd \"%s\"))"
+							  key))
+		 ;; (eval-string (format "(fmakunbound '%s-%s)"
+		 ;; 					  jorp-name-compact key))
+		 ;; (eval-string (format "(makunbound  'j-o-r-p-%s-%s-command-string)"
+		 ;; 					  jorp-name-compact key))
+		 )
+  (setq jorp-binds nil))
 
 (defun jorp-fetch-config ()
   "fetches config fields from 'jorp-file'"
@@ -262,10 +281,36 @@ rdbg-executable ` remedybg.exe\n\
 				(setq-local command (s-trim (nth 1 current-command)))
 				(eval-string (format "(setq  j-o-r-p-%s-%s-command-string %s)"
 									 jorp-name-compact key command))
-				(eval-string (format "(defun j-o-r-p-%s-%s-command () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
-									 jorp-name-compact key jorp-name-compact key)) 
-				(eval-string (format "(global-set-key (kbd \"%s\") 'j-o-r-p-%s-%s-command)"
-									 key jorp-name-compact key)))))
+				(eval-string (format "(defun %s-%s () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
+									 jorp-name-compact key jorp-name-compact key))
+				;; (eval-string (format "(global-set-key (kbd \"%s\") '%s-%s)"
+				;; 					 key jorp-name-compact key))
+				)))
+
+(defun jorp-load-binds ()
+    "loads and sets 'jorp-binds' from 'jorp-file'"
+	(if (not (equal jorp-binds nil))
+		(clear-old-binds))
+	(jorp-get-lines-of-type jorp-config-binds-string)
+	(let ((line-count (length result-lines))
+		  (jorp-name-compact (s-replace " " "" jorp-name)))
+	     (setq jorp-binds (list))
+		 (setq-local bind-index 0)
+		 (while (< bind-index line-count)
+		     (setq-local bind-line (nth bind-index result-lines))
+			 (add-to-list 'jorp-binds bind-line)
+			 (setq-local bind-index (1+ bind-index))
+			 (setq-local current-bind (split-string bind-line jorp-config-command-seperator t))
+			 (setq-local key     (s-trim (nth 0 current-bind)))
+			 (setq-local command (s-trim (nth 1 current-bind)))
+			 ;; (eval-string (format "(setq  j-o-r-p-%s-%s-command-string %s)"
+			 ;; 					  jorp-name-compact key command))
+			 ;; (eval-string (format "(defun %s-%s () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
+			 ;; 					  jorp-name-compact key jorp-name-compact key))
+			 (eval-string (format "(global-set-key (kbd \"%s\") '%s-%s)"
+								 key jorp-name-compact command))
+			 )))
+
 
 (defun jorp-load-vars ()
   "loads and sets 'jorp-vars' from 'jorp-file'"
@@ -277,7 +322,7 @@ rdbg-executable ` remedybg.exe\n\
 		  (while (< var-index line-count)
 				 (setq-local jorp-var (nth var-index result-lines))
 				 (setq-local var-index (+ var-index 1))
-				 (setq-local current-var (split-string jorp-var "`" t))
+				 (setq-local current-var (split-string jorp-var jorp-config-command-seperator t))
 				 (setq-local var-name  (s-trim (nth 0 current-var)))
 				 (setq-local var-value (s-trim (nth 1 current-var)))				  
 				 (add-to-list 'jorp-vars jorp-var)

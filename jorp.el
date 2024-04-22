@@ -1,7 +1,7 @@
-;; -*- coding: utf-8; lexical-binding: t; -*-
+;;; jorp.el -- Summary -*- coding: utf-8; lexical-binding: t; -*-
 
-;; 
-;; JORP - v0.1 - simple project configuration 
+;;; Commentary:
+;; JORP - v0.1 - simple project configuration
 ;; by mursel alper gokcan (github.com/alpergkcan)
 ;;
 ;; [`About']
@@ -11,7 +11,7 @@
 ;; [`Features']
 ;; + set compile commands and their shortcuts
 ;; + set file patterns for indexing (just opens buffers at the moment, but still usefull for lsp-servers)
-;; + quickly reach your project directories and files 
+;; + quickly reach your project directories and files
 ;;
 ;; [`Sample']
 ;; @@@@@@@@@@@@ config.jorp @@@@@@@@@@@@@
@@ -42,15 +42,17 @@
 (require 's)
 (require 'bind)
 
+;;; Code:
 ;; UTILITY
 (defun get-lines-as-list (file)
-  "returns list of lines in FILE."
+  "Return list of lines in 'FILE'."
   (with-temp-buffer
 	(insert-file-contents file)
 	(split-string (buffer-string) "\n" t)))
 
 (defun get-config-lines (config-file comment-char)
-  "returns list of lines in CONFIG-FILE."
+  "Return a list of lines in 'CONFIG-FILE'.
+Ignore parts that start with 'COMMENT-CHAR'."
   (setq-local all-config-lines (get-lines-as-list config-file))
   (setq-local config-lines (list))
   (let ((config-line-count (length all-config-lines)))
@@ -63,14 +65,14 @@
   (nreverse config-lines))
 
 (defun get-index-of (element list);;
-  "returns index of 'ELEMENT' in 'LIST'"
+  "Return the index of 'ELEMENT' in 'LIST'."
   (let ((element-index (cl-position element list :test 'equal)) )
 	   (if  (equal element-index nil)
 			-1
 		    element-index)))
 
 (defun get-single-arg-from-list (list prompt-str)
-  "pass this to the interactive for reading argument from a list collection"
+  "Inside an interactive block, prompt the user with 'PROMPT-STR' and choose argument from 'LIST' collection."
   (list (let ((completion-ignore-case t)
 			  (prompt prompt-str))
 		     (completing-read prompt
@@ -79,14 +81,15 @@
 							  t))))
 
 (defun eval-string (string)
-  "eval elisp code stored in a string."
+  "Eval elisp code stored in 'STRING'."
   (eval (car (read-from-string string))))
 
 (defun format-numbered (string &rest args-list)
-  "accepts $x where x is index of argument"
+  "Accept instances of '$x' inside the 'STRING' where x are indices to the 'ARGS-LIST'."
   (s-format string 'elt args-list))
 
 (defun jorp-apply-to-each (list-var func)
+  "Apply 'FUNC' to each element inside 'LIST-VAR'."
   (setq-local item-count (length list-var))
   (setq-local new-list (list))
   (setq-local item-index (- item-count 1))
@@ -95,7 +98,7 @@
 	(setq-local item-index (- item-index 1)))
   (append new-list (list)))
 
-;; following region is for loading list of files with idle timer 
+;; following region is for loading list of files with idle timer
 (setq jorp-file-idle-loading t)
 (setq jorp-idle-file-batch-size 4) ; set to your liking
 (setq jorp-idle-file-sec 0.5)	   ; set to your liking
@@ -105,19 +108,19 @@
 (setq jorp-idle-file-timer nil)
 
 (defun find-files-batched (filelist batch-size start-index)
-  "find-file-noselect on 'batch-size' many files from 'filelist' starting from 'start-index'"
+  "Call 'find-file-noselect' with 'BATCH-SIZE' many files from 'FILELIST' starting from 'START-INDEX'."
   (setq-local num-to-load batch-size)
   (setq-local num-left (- (length filelist) start-index))
   (if (< num-left batch-size) (setq-local num-to-load num-left))
   (setq-local index start-index)
-  (while (< index (+ start-index num-to-load)) 
+  (while (< index (+ start-index num-to-load))
 	(let ()
 	  (setq-local file (nth index filelist))
 	  (find-file-noselect file)
 	  (message (format "[%s] indexed '%s'" jorp-name file))
 	  (setq-local index (+ index 1)))))
 (defun find-files-idle-inner ()
-  "find-file from 'jorp-idle-file-list' in 'jorp-idle-file-index'"
+  "Call 'find-file' from 'jorp-idle-file-list' in 'jorp-idle-file-index'."
   (if (equal jorp-idle-file-list nil)
 	  (let ()
 		  (cancel-timer jorp-idle-file-timer)
@@ -135,14 +138,14 @@
 			   (find-files-batched jorp-idle-file-list jorp-idle-file-batch-size jorp-idle-file-index)
 			   (setq jorp-idle-file-index (+ jorp-idle-file-index jorp-idle-file-batch-size))))))
 (defun find-files-idle  (filelist)
-  "find-file files one by one each 'jorp-idle-file-sec' idle seconds from 'FILELIST'"
+  "Call 'find-file' files one by one each 'jorp-idle-file-sec' idle seconds from 'FILELIST'."
   (if (equal jorp-idle-file-list nil) ; are we already loading some files?
 	  (let ()
 		(setq jorp-idle-file-list filelist)
 		(setq jorp-idle-file-index 0)
 		(message (format "[%s] indexing started for %s files!" jorp-name (number-to-string (length filelist))))
 		(find-files-idle-inner)
-		(setq jorp-idle-file-timer 
+		(setq jorp-idle-file-timer
 			  (run-with-idle-timer jorp-idle-file-sec t 'find-files-idle-inner)))
 	  (let ()
 		(setq jorp-idle-file-list (append jorp-idle-file-list filelist))
@@ -188,20 +191,20 @@ rdbg-executable ` remedybg.exe\n\
 
 ;; Private Functions
 (defun jorp-get-dirs ()
-  "returns list of jorp dirs"
+  "Return a list of jorp dirs."
   (if (file-exists-p jorp-projects-file)
 	  (jorp-apply-to-each (get-lines-as-list jorp-projects-file) 's-trim)
 	  (list "")))
 
 (defun jorp-command (string)
-  "compiles with command 'STRING' using 'compile' function."
+  "Call 'compile' with command 'STRING'."
   (setq-local temp-dir default-directory)
   (setq default-directory (concat jorp-dir "/"))
   (compile string)
   (setq default-directory temp-dir))
 
 (defun clear-old-commands ()
-  "unbind shortcuts for previously set commands from `jorp-commands' configured by 'config.jorp'"
+  "Undefine commands previously loaded to `jorp-commands' configured by 'config.jorp'."
   (setq-local old-command-index 0)
   (setq-local command-count (length jorp-commands))
   (while (< old-command-index command-count)
@@ -217,7 +220,7 @@ rdbg-executable ` remedybg.exe\n\
   (setq jorp-commands nil))
 
 (defun clear-old-binds ()
-  "unbind shortcuts for previously set commands from `jorp-commands' configured by 'config.jorp'"
+  "Unbind shortcuts previously loaded to `jorp-binds' configured by 'config.jorp'."
   (setq-local old-bind-index 0)
   (setq-local bind-count (length jorp-binds))
   (while (< old-bind-index bind-count)
@@ -234,7 +237,7 @@ rdbg-executable ` remedybg.exe\n\
   (setq jorp-binds nil))
 
 (defun jorp-fetch-config ()
-  "fetches config fields from 'jorp-file'"
+  "Fetch config fields from 'jorp-file'."
   (setq jorp-lines (jorp-apply-to-each (get-config-lines jorp-file jorp-config-comment-char) 's-trim))
   (setq jorp-name  (s-trim (nth 0 jorp-lines)))
   (setq jorp-headers (list))
@@ -249,7 +252,7 @@ rdbg-executable ` remedybg.exe\n\
 
 (setq result-lines nil)
 (defun jorp-get-lines-of-type (type)
-  "sets 'result-lines' to the lines inside config region marked as '[type]'"
+  "Set 'result-lines' to the lines inside config region marked as 'TYPE'."
   (setq result-lines (list))
   (let ((line-count (length jorp-lines))
 		(jorp-header-index (get-index-of (format "[%s]" type) jorp-lines)))
@@ -262,7 +265,7 @@ rdbg-executable ` remedybg.exe\n\
 				  (add-to-list 'result-lines jorp-line)))))
 
 (defun jorp-load-commands ()
-  "loads and sets 'jorp-commands' from 'jorp-file'"
+  "Load and set 'jorp-commands' from 'jorp-file'."
     (if (not (equal jorp-commands nil))
 		(clear-old-commands))
 	(jorp-get-lines-of-type jorp-config-commands-string)
@@ -288,7 +291,7 @@ rdbg-executable ` remedybg.exe\n\
 				)))
 
 (defun jorp-load-binds ()
-    "loads and sets 'jorp-binds' from 'jorp-file'"
+    "Load and set 'jorp-binds' from 'jorp-file'."
 	(if (not (equal jorp-binds nil))
 		(clear-old-binds))
 	(jorp-get-lines-of-type jorp-config-binds-string)
@@ -313,7 +316,7 @@ rdbg-executable ` remedybg.exe\n\
 
 
 (defun jorp-load-vars ()
-  "loads and sets 'jorp-vars' from 'jorp-file'"
+  "Load and set 'jorp-vars' from 'jorp-file'."
 	(jorp-get-lines-of-type jorp-config-vars-string)
 	(let ((line-count (length result-lines))
 		  (jorp-name-compact (s-replace " " "" jorp-name)))
@@ -324,13 +327,13 @@ rdbg-executable ` remedybg.exe\n\
 				 (setq-local var-index (+ var-index 1))
 				 (setq-local current-var (split-string jorp-var jorp-config-command-seperator t))
 				 (setq-local var-name  (s-trim (nth 0 current-var)))
-				 (setq-local var-value (s-trim (nth 1 current-var)))				  
+				 (setq-local var-value (s-trim (nth 1 current-var)))
 				 (add-to-list 'jorp-vars jorp-var)
 				 (setq-local set-var-string (format "(setq %s %s)" var-name var-value))
 				 (eval-string set-var-string))))
 
 (defun jorp-load-files ()
-  "loads and sets 'jorp-files' from 'jorp-file'"
+  "Load and set 'jorp-files' from the config 'jorp-file'."
 	(jorp-get-lines-of-type jorp-config-files-string)
 	(let ((line-count (length result-lines))
 		  (jorp-name-compact (s-replace " " "" jorp-name)))
@@ -345,7 +348,8 @@ rdbg-executable ` remedybg.exe\n\
 			  (find-files-batched jorp-files (length jorp-files) 0)))
 
 (defun jorp-load-with-confirmation (should-load)
-  "loads 'jorp-load-target' with interactive confirmation"
+  "Load 'jorp-load-target' with interactive confirmation.
+If 'SHOULD-LOAD' is non-nil the project will be loaded."
   (interactive (list (y-or-n-p (format "[%s] Load %s?" jorp-name jorp-load-target))))
   (if (not (equal jorp-load-target ""))
 	  (if should-load (eval-string (format "(jorp-load-%s)" jorp-load-target)))))
@@ -353,7 +357,7 @@ rdbg-executable ` remedybg.exe\n\
 (setq jorp-load-target "")
 
 (defun jorp-load (dir)
-  "loads jorp 'DIR' commands and files."
+  "Load jorp 'DIR' commands and files."
   (setq jorp-dir (s-chop-right 1 dir))
   (setq jorp-file (concat (concat jorp-dir "/") jorp-config-filename))
   (setq default-directory (concat jorp-dir "/"))
@@ -367,7 +371,7 @@ rdbg-executable ` remedybg.exe\n\
 
 ;; Public Functions
 (defun jorp-add (dir)
-  "adds existing jorp 'DIR' to managed projects"
+  "Add existing jorp 'DIR' to managed projects."
   (interactive "D")						 ; get dir
   (if (member dir (jorp-get-dirs))
 	  (message (format "[JORP] %s is already being managed!" dir))
@@ -378,8 +382,9 @@ rdbg-executable ` remedybg.exe\n\
 						t)
 	      (message "[JORP] given directory does not contain config.jorp"))))
 
-(defun jorp-remove (dir-l should-delete-config)
-  "removes jorp 'DIR' from managed projects."
+(defun jorp-remove (dir should-delete-config)
+  "Remove jorp 'DIR' from managed projects.
+If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be deleted."
   (interactive (list
 				(get-single-arg-from-list (jorp-get-dirs) "[JORP] Which project?")
 				(y-or-n-p (format "[JORP] Delete config file '%s'?" jorp-config-filename))))
@@ -387,12 +392,11 @@ rdbg-executable ` remedybg.exe\n\
  	   (if (and should-delete-config
 				(file-exists-p config-file))
 		   (delete-file config-file))
-	   (if (equal config-file jorp-file)
+	   (if (equal config-file jorp-file) ;; if it is currently loaded
 		   (let ()
 			    (clear-old-commands)
 			    (setq jorp-file  (setq jorp-name     (setq jorp-dir    "")))
-				(setq jorp-lines (setq jorp-commands (setq jorp-files nil))))))
-  (setq dir (nth 0 dir-l))
+			    (setq jorp-lines (setq jorp-commands (setq jorp-files nil))))))
   (if (equal dir "")
 	  (message "[JORP] no project is configured. Try `jorp-create'")
 	  (let ((dirs (jorp-get-dirs)))
@@ -408,16 +412,19 @@ rdbg-executable ` remedybg.exe\n\
 					(jorp-add cur-dir))))))
 
 (defun jorp-open (dir)
-  "Opens jorp 'DIR' loads."
+  "Open jorp 'DIR' and load it."
   (interactive (get-single-arg-from-list (jorp-get-dirs) "Which project? "))
   (if (equal dir "")
-	  (message "[JORP] no project is configured. Try `jorp-create'")
+	  (message "[JORP] no project is configured. Try `jorp-create'.")
 	  (let ()
-		   (find-file dir)
-		   (jorp-load dir))))
+		(let () ;; move recent projects to the top
+		  (jorp-remove dir nil)
+		  (jorp-add dir))
+		(find-file dir)
+		(jorp-load dir))))
 
 (defun jorp-reload ()
-  "reloads current jorp project."
+  "Reload current jorp project."
   (interactive)
   (if (equal jorp-name "")
 	  (message "[JORP] No project is currently loaded!")
@@ -431,7 +438,7 @@ rdbg-executable ` remedybg.exe\n\
 					   (call-interactively 'jorp-load-with-confirmation))))))
 			   
 (defun jorp-create (dir)
-  "Create jorp project on DIR"
+  "Create jorp project on DIR."
   (interactive "D")						; get dir
   (setq-local filename (concat dir jorp-config-filename))
   (if (file-exists-p filename)
@@ -445,7 +452,7 @@ rdbg-executable ` remedybg.exe\n\
 		   (find-file jorp-file))))
 
 (defun jorp-config ()
-  "Open current config.jorp that is 'jorp-file'"
+  "Open current config.jorp that is 'jorp-file'."
   (interactive)
   (if (equal jorp-file "")
 	  (message "[JORP] no project is loaded!")
@@ -460,3 +467,4 @@ rdbg-executable ` remedybg.exe\n\
 	  "c" #'jorp-config)
 
 (provide 'jorp)
+;;; jorp.el ends here

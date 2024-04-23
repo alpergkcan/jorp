@@ -185,7 +185,8 @@ rdbg-executable ` remedybg.exe\n\
 (setq jorp-name     "")
 (setq jorp-lines    nil)
 (setq jorp-commands nil)
-(setq jorp-binds nil)
+(setq jorp-command-names nil)
+(setq jorp-binds    nil)
 (setq jorp-vars     nil)
 (setq jorp-files    nil)
 
@@ -213,11 +214,12 @@ rdbg-executable ` remedybg.exe\n\
 		 (setq-local jorp-name-compact (s-replace " " "" jorp-name))
 		 ;; (eval-string (format "(unbind-key (kbd \"%s\"))"
 		 ;; 					  key))
-		 (eval-string (format "(fmakunbound '%s-%s)"
+		 (eval-string (format "(fmakunbound 'JORP-%s-%s)"
 							  jorp-name-compact key))
 		 (eval-string (format "(makunbound  'j-o-r-p-%s-%s-command-string)"
 							  jorp-name-compact key)))
-  (setq jorp-commands nil))
+  (setq jorp-commands nil)
+  (setq jorp-command-names nil))
 
 (defun clear-old-binds ()
   "Unbind shortcuts previously loaded to `jorp-binds' configured by 'config.jorp'."
@@ -229,7 +231,7 @@ rdbg-executable ` remedybg.exe\n\
 		 (setq-local jorp-name-compact (s-replace " " "" jorp-name))
 		 (eval-string (format "(unbind-key (kbd \"%s\"))"
 							  key))
-		 ;; (eval-string (format "(fmakunbound '%s-%s)"
+		 ;; (eval-string (format "(fmakunbound 'JORP-%s-%s)"
 		 ;; 					  jorp-name-compact key))
 		 ;; (eval-string (format "(makunbound  'j-o-r-p-%s-%s-command-string)"
 		 ;; 					  jorp-name-compact key))
@@ -274,6 +276,7 @@ rdbg-executable ` remedybg.exe\n\
 	(let ((line-count (length result-lines))
 		  (jorp-name-compact (s-replace " " "" jorp-name)))
 		 (setq jorp-commands (list))
+		 (setq jorp-command-names (list))
 		 (setq-local command-index 0)
 		 (while (< command-index line-count)
 				(setq-local command-line (nth command-index result-lines))
@@ -282,11 +285,12 @@ rdbg-executable ` remedybg.exe\n\
 				(setq-local current-command (split-string command-line jorp-config-command-seperator t))
 				(setq-local key     (s-trim (nth 0 current-command)))
 				(setq-local command (s-trim (nth 1 current-command)))
+				(add-to-list 'jorp-command-names key)
 				(eval-string (format "(setq  j-o-r-p-%s-%s-command-string %s)"
 									 jorp-name-compact key command))
-				(eval-string (format "(defun %s-%s () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
+				(eval-string (format "(defun JORP-%s-%s () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
 									 jorp-name-compact key jorp-name-compact key))
-				;; (eval-string (format "(global-set-key (kbd \"%s\") '%s-%s)"
+				;; (eval-string (format "(global-set-key (kbd \"%s\") 'JORP-%s-%s)"
 				;; 					 key jorp-name-compact key))
 				)))
 
@@ -308,9 +312,9 @@ rdbg-executable ` remedybg.exe\n\
 			 (setq-local command (s-trim (nth 1 current-bind)))
 			 ;; (eval-string (format "(setq  j-o-r-p-%s-%s-command-string %s)"
 			 ;; 					  jorp-name-compact key command))
-			 ;; (eval-string (format "(defun %s-%s () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
+			 ;; (eval-string (format "(defun JORP-%s-%s () (interactive) (jorp-command j-o-r-p-%s-%s-command-string))"
 			 ;; 					  jorp-name-compact key jorp-name-compact key))
-			 (eval-string (format "(global-set-key (kbd \"%s\") '%s-%s)"
+			 (eval-string (format "(global-set-key (kbd \"%s\") 'JORP-%s-%s)"
 								 key jorp-name-compact command))
 			 )))
 
@@ -398,7 +402,7 @@ If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be dele
 			    (setq jorp-file  (setq jorp-name     (setq jorp-dir    "")))
 			    (setq jorp-lines (setq jorp-commands (setq jorp-files nil))))))
   (if (equal dir "")
-	  (message "[JORP] no project is configured. Try `jorp-create'")
+	  (message "[JORP] No project is configured. Try `jorp-create'")
 	  (let ((dirs (jorp-get-dirs)))
 		   (delete-file jorp-projects-file)
 		   (setq-local dir-count (length dirs))
@@ -415,7 +419,7 @@ If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be dele
   "Open jorp 'DIR' and load it."
   (interactive (get-single-arg-from-list (jorp-get-dirs) "Which project? "))
   (if (equal dir "")
-	  (message "[JORP] no project is configured. Try `jorp-create'.")
+	  (message "[JORP] No project is configured. Try `jorp-create'.")
 	  (let ()
 		(let () ;; move recent projects to the top
 		  (jorp-remove dir nil)
@@ -455,8 +459,20 @@ If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be dele
   "Open current config.jorp that is 'jorp-file'."
   (interactive)
   (if (equal jorp-file "")
-	  (message "[JORP] no project is loaded!")
+	  (message "[JORP] No project is loaded!")
 	  (find-file jorp-file)))
+
+(defun jorp-call (jorp-call-target)
+  "Choose a 'JORP-CALL-TARGET' to execute from the ones that are defined by the current project."
+  (interactive (if (equal jorp-name "")
+				   (list "")
+				   (get-single-arg-from-list jorp-command-names
+											 (format "[%s] Which command?" jorp-name))))
+  (if (equal jorp-call-target "")
+	  (message "[JORP] No project is loaded!")
+	  (let ()
+		   (setq-local jorp-name-compact (s-replace " " "" jorp-name))
+		   (eval-string (format "(JORP-%s-%s)" jorp-name-compact jorp-call-target)))))
 
 (bind (setq jorp-map (make-sparse-keymap))
 	  "A" #'jorp-add
@@ -464,7 +480,11 @@ If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be dele
 	  "R" #'jorp-remove
 	  "o" #'jorp-open
 	  "r" #'jorp-reload
-	  "c" #'jorp-config)
+	  "c" #'jorp-config
+	  "x" #'jorp-call)
+
+(bind global-map
+	  "C-c j" jorp-map)
 
 (provide 'jorp)
 ;;; jorp.el ends here

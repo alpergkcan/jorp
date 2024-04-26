@@ -474,7 +474,7 @@ If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be dele
 		   (setq-local jorp-name-compact (s-replace " " "" jorp-name))
 		   (eval-string (format "(JORP-%s-%s)" jorp-name-compact jorp-call-target)))))
 
-(bind (setq jorp-map (make-sparse-keymap))
+(bind (define-prefix-command #'jorp-prefix)
 	  "A" #'jorp-add
 	  "C" #'jorp-create
 	  "R" #'jorp-remove

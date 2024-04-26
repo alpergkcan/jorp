@@ -483,8 +483,5 @@ If 'SHOULD-DELETE-CONFIG' is non-nil the config at the project root will be dele
 	  "c" #'jorp-config
 	  "x" #'jorp-call)
 
-(bind global-map
-	  "C-c j" jorp-map)
-
 (provide 'jorp)
 ;;; jorp.el ends here

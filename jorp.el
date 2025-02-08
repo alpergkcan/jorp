@@ -116,9 +116,15 @@ Ignore parts that start with 'COMMENT-CHAR'."
   (while (< index (+ start-index num-to-load))
 	(let ()
 	  (setq-local file (nth index filelist))
-	  (find-file-noselect file)
+
+	  ;; disabling auto mode alist allows us to open files as preview
+	  ;; and not actually trigger any hooks, huge slowdown
+	  (let* ((auto-mode-alist nil)
+			 (find-file-noselect file)))
+
 	  (message (format "[%s] indexed '%s'" jorp-name file))
 	  (setq-local index (+ index 1)))))
+
 (defun find-files-idle-inner ()
   "Call 'find-file' from 'jorp-idle-file-list' in 'jorp-idle-file-index'."
   (if (equal jorp-idle-file-list nil)
